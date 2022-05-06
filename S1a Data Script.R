@@ -259,8 +259,20 @@ plot(df$Gender)
 plot(df$Income)
 
 df %>% select(
-  Gender, Age, Race, Education, Employed, Income, SexualOr) %>% 
+  Gender, Age_1, Race, Education, Employed, Income, SexualOr) %>% 
   summary()
+nrow(df)
+
+sd(df$Age_1)
+
+table(df$Race)
+
+table(df$Education)
+
+table(df$SexualOr)
+
+table(df$Student)
+
 
 #RNS/F distributions pre/post, histograms
 p1 <- ggplot(df, aes(RNF1_Z)) +
