@@ -240,13 +240,13 @@ df$pKM <- 1/(1+(exp(1)^-(df$KM_Scl)))
 ##Initial Data Checks
 #standardize data
 
-df$pKM_Z <- scale(df$pKM)
-df$RNF1_Z <- scale(df$RNF1)
-df$RNF2_Z <- scale(df$RNF2)
-df$RNS1_Z <- scale(df$RNS1)
-df$RNS2_Z <- scale(df$RNS2)
-df$Attach_anx_Z <- scale(df$Attach_anx)
-df$Attach_avd_Z <- scale(df$Attach_avd)
+df$pKM_Z <- scale(df$pKM)[,1]
+df$RNF1_Z <- scale(df$RNF1)[,1]
+df$RNF2_Z <- scale(df$RNF2)[,1]
+df$RNS1_Z <- scale(df$RNS1)[,1]
+df$RNS2_Z <- scale(df$RNS2)[,1]
+df$Attach_anx_Z <- scale(df$Attach_anx)[,1]
+df$Attach_avd_Z <- scale(df$Attach_avd)[,1]
 
 #demographic distributions, histograms(age, race/ethnicity, gender)
 library(ggplot2)
@@ -1038,3 +1038,59 @@ summary(RNF_Y_Model_res)
 #Step 3 (more like step 2.9)
 summary(RNS_Yt_Model_res)
 summary(RNF_Yt_Model_res)
+
+
+###Maybe just stick with blavaan?
+
+library(blavaan)
+library(brms)
+library(qgraph)
+library(bayestestR)
+options(mc.cores = parallel::detectCores())
+
+R.model <- '
+#Regressions: Mediators, PA & KM. Priors of parameters + parameters
+pKM_Z ~ prior("normal(0,2)")*Cond + 
+ ai1*Cond
+
+#Regressions: Outcomes, ARC Sat/Frus. Priors of parameters + parameters
+RNS2_Z ~ prior("normal(0,2)")*pKM_Z + prior("normal(0,2)")*Cond + prior("normal(0,2)")*RNS1_Z +
+bRSi*pKM_Z + cRS1*Cond + dRS*RNS1_Z
+
+RNF2_Z ~ prior("normal(0,2)")*pKM_Z + prior("normal(0,2)")*Cond + prior("normal(0,2)")*RNF1_Z +
+bRFi*pKM_Z + cRF1*Cond + dRF*RNF1_Z
+
+
+#Intercepts: 
+pKM_Z~ prior("normal(0,2)")*1 +
+ai0*1
+RNS2_Z ~ prior("normal(0,2)")*1 +
+cRS0*1
+RNF2_Z ~ prior("normal(0,2)")*1 +
+cRF0*1
+
+#Outcome Estimators:
+IRS_M_KM:= bRSi*ai1
+IRS_M_Con:= bRSi*ai0
+IRF_M_KM:= bRFi*ai1
+IRF_M_Con:= bRFi*ai0
+'
+
+fit_R <- bsem(R.model, data = df, n.chains = 4, burnin = 5000, sample = 10000, seed = 123)
+summary(fit_R)
+
+library(bayesplot)
+library(ggplot2)
+color_scheme_set("viridis")
+
+#Chain Mixing Plots
+plot(fit_R, pars = c(1, 8), plot.type = "trace")#M Side
+ggsave("M_Trace_Plots.png")
+plot(fit_R, pars = c(2:7, 9:10), plot.type = "trace")#R Side
+ggsave("R_Trace_Plots.png")
+plot(fit_R, pars = c(1, 8), plot.type = "acf")#M Side
+ggsave("M_Autorcor_Plots.png")
+plot(fit_R, pars = c(2:7, 9:10), plot.type = "acf")#R Side
+ggsave("R_Autorcor_Plots.png")
+
+blavInspect(fit_R, "neff")
